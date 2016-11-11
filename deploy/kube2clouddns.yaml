@@ -1,0 +1,35 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kube2clouddns
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        run: kube2clouddns
+    spec:
+      containers:
+      - name: kube2clouddns
+        imagePullPolicy: IfNotPresent
+        image: kube2clouddns
+        args: [ "--project", "$(GCP_PROJECT_ID)", "--domain", "$(DOMAIN)", "--serviceaccount", "/etc/kube2clouddns/clouddns_service_account.json"]
+        env:
+          - name: GCP_PROJECT_ID
+            valueFrom:
+              configMapKeyRef:
+                name: clouddnsconfig
+                key: gcp_project_id
+          - name: DOMAIN
+            valueFrom:
+              configMapKeyRef:
+                name: clouddnsconfig
+                key: domain
+        volumeMounts:
+            # name must match the volume name below
+            - name: secret-volume
+              mountPath: /etc/kube2clouddns
+      volumes:
+        - name: secret-volume
+          secret:
+            secretName: clouddnsserviceaccount

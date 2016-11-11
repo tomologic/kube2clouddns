@@ -1,0 +1,7 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: clouddnsconfig
+data:
+  gcp_project_id: <gcp project id here>
+  domain: <the domain where the services should be registred>
