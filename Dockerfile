@@ -8,14 +8,14 @@ COPY glide.yaml $PROJECT_HOME
 COPY glide.lock $PROJECT_HOME
 COPY *.go $PROJECT_HOME
 
-RUN apk --no-cache add --update gcc git openssl ca-certificates musl-dev \
+RUN apk --no-cache add -t deps --update gcc git openssl ca-certificates musl-dev \
     && export GOPATH=/go \
-    && apk --no-cache add --update --repository http://dl-cdn.alpinelinux.org/alpine/edge/community go glide  \
+    && apk --no-cache add -t deps --update --repository http://dl-cdn.alpinelinux.org/alpine/edge/community go glide  \
     && glide install \
     #&& go build -v \
     && go install \
     && cp /go/bin/* /usr/bin/ \
-    && rm -rf /go \
+    && rm -rf /go $HOME/.glide \
     && apk del --purge deps; rm -rf /tmp/* /var/cache/apk/*
 
 ENTRYPOINT ["kube2clouddns"]
