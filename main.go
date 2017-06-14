@@ -1,21 +1,21 @@
 package main
 
 import (
-	LogLib "log"
 	"flag"
-	"time"
-	"k8s.io/client-go/1.5/tools/cache"
-	"k8s.io/client-go/1.5/pkg/fields"
-	"k8s.io/client-go/1.5/kubernetes"
-	"k8s.io/client-go/1.5/pkg/api/v1"
-	"k8s.io/client-go/1.5/tools/clientcmd"
+	"io/ioutil"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/pkg/fields"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
+	LogLib "log"
 	"os"
 	"os/signal"
 	"syscall"
-	"io/ioutil"
+	"time"
 )
 
-var log = LogLib.New(os.Stderr, "kube2clouddns: ", LogLib.LstdFlags | LogLib.Lshortfile)
+var log = LogLib.New(os.Stderr, "kube2clouddns: ", LogLib.LstdFlags|LogLib.Lshortfile)
 
 type DnsUpdater struct {
 	dnsClient *CloudDnsClient
@@ -43,7 +43,12 @@ func (client *DnsUpdater) serviceUpdated(oldObj, newObj interface{}) {
 func (client *DnsUpdater) upsertService(service *v1.Service) {
 	externalDnsLabel, ok := service.Labels["external_dns"]
 	if ok && externalDnsLabel == "true" {
-		err := client.dnsClient.upsert(service.Name, service.Spec.ClusterIP, 60)
+		hostname, ok := service.Annotations["external_dns_hostname"]
+		if !ok {
+			// If external_dns_hostname is not set, fall back on service name
+			hostname = service.Name
+		}
+		err := client.dnsClient.upsert(hostname, service.Spec.ClusterIP, 60)
 		if err != nil {
 			log.Println(err)
 		}
@@ -52,17 +57,21 @@ func (client *DnsUpdater) upsertService(service *v1.Service) {
 func (client *DnsUpdater) deleteService(service *v1.Service) {
 	externalDnsLabel, ok := service.Labels["external_dns"]
 	if ok && externalDnsLabel == "true" {
-		err := client.dnsClient.delete(service.Name)
+		hostname, ok := service.Annotations["external_dns_hostname"]
+		if !ok {
+			hostname = service.Name
+		}
+		err := client.dnsClient.delete(hostname)
 		if err != nil {
 			log.Println(err)
 		}
 	}
 }
 
-func watchServicesAndUpdateCloudDNS(kubeClientset *kubernetes.Clientset, dnsUpdater DnsUpdater, done chan struct{}) (cache.Store) {
+func watchServicesAndUpdateCloudDNS(kubeClientset *kubernetes.Clientset, dnsUpdater DnsUpdater, done chan struct{}) cache.Store {
 
 	//Define what we want to look for (Services)
-	watchlist := cache.NewListWatchFromClient(kubeClientset.Core().GetRESTClient(), "services", v1.NamespaceDefault, fields.Everything())
+	watchlist := cache.NewListWatchFromClient(kubeClientset.Core().RESTClient(), "services", v1.NamespaceDefault, fields.Everything())
 	resyncPeriod := 30 * time.Minute
 
 	//Setup an informer to call functions when the watchlist changes
@@ -83,10 +92,10 @@ func watchServicesAndUpdateCloudDNS(kubeClientset *kubernetes.Clientset, dnsUpda
 }
 
 var (
-	kubeconfig = flag.String("kubeconfig", "", "absolute path to a kubeconfig file")
+	kubeconfig     = flag.String("kubeconfig", "", "absolute path to a kubeconfig file")
 	serviceaccount = flag.String("serviceaccount", "", "absolute path to a service account json file")
-	project = flag.String("project", "", "The GCP project id in which the DNS zone for the domain is hosted")
-	domain = flag.String("domain", "", "The domain that should host the service sub domains")
+	project        = flag.String("project", "", "The GCP project id in which the DNS zone for the domain is hosted")
+	domain         = flag.String("domain", "", "The domain that should host the service sub domains")
 )
 
 func main() {

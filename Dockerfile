@@ -1,4 +1,4 @@
-FROM alpine:3.4
+FROM alpine:3.6
 ENV GOPATH /go
 ENV PACKAGE github.com/tomologic/kube2clouddns/
 ENV PROJECT_HOME $GOPATH/src/$PACKAGE
