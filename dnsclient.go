@@ -10,7 +10,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package main
 
 import (
@@ -160,7 +159,7 @@ func (c *CloudDnsClient) getZoneFromProjectAndDomain() (*dns.ManagedZone, error)
 
 	var zone *dns.ManagedZone
 	for _, zoneInEvaluation := range zones.ManagedZones {
-		if strings.HasSuffix(c.domain + ".", zoneInEvaluation.DnsName) {
+		if strings.HasSuffix(c.domain+".", zoneInEvaluation.DnsName) {
 			zone = zoneInEvaluation
 		}
 	}

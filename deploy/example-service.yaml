@@ -22,6 +22,8 @@ metadata:
   labels:
     run: my-nginx
     external_dns: "true"
+  annotations:
+    external_dns_hostname: "example-nginx"
 spec:
   ports:
   - port: 80
