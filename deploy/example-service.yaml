@@ -21,8 +21,10 @@ metadata:
   name: my-nginx
   labels:
     run: my-nginx
-    external_dns: "true"
+    # external_dns value is checked both in labels and in annotations
+    #external_dns: "true"
   annotations:
+    external_dns: "true"
     external_dns_hostname: "example-nginx"
 spec:
   ports:
