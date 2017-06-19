@@ -41,8 +41,7 @@ func (client *DnsUpdater) serviceUpdated(oldObj, newObj interface{}) {
 	}
 }
 func (client *DnsUpdater) upsertService(service *v1.Service) {
-	externalDnsLabel, ok := service.Labels["external_dns"]
-	if ok && externalDnsLabel == "true" {
+	if externalDnsEnabled(service) {
 		hostname, ok := service.Annotations["external_dns_hostname"]
 		if !ok {
 			// If external_dns_hostname is not set, fall back on service name
@@ -55,8 +54,7 @@ func (client *DnsUpdater) upsertService(service *v1.Service) {
 	}
 }
 func (client *DnsUpdater) deleteService(service *v1.Service) {
-	externalDnsLabel, ok := service.Labels["external_dns"]
-	if ok && externalDnsLabel == "true" {
+	if externalDnsEnabled(service) {
 		hostname, ok := service.Annotations["external_dns_hostname"]
 		if !ok {
 			hostname = service.Name
@@ -66,6 +64,20 @@ func (client *DnsUpdater) deleteService(service *v1.Service) {
 			log.Println(err)
 		}
 	}
+}
+
+func externalDnsEnabled(service *v1.Service) bool {
+	// Is external_dns enabled in service labels?
+	externalDnsLabel, ok := service.Labels["external_dns"]
+	if ok && externalDnsLabel == "true" {
+		return true
+	}
+	// Is external_dns enabled in service annotations?
+	externalDnsAnnotation, ok := service.Annotations["external_dns"]
+	if ok && externalDnsAnnotation == "true" {
+		return true
+	}
+	return false
 }
 
 func watchServicesAndUpdateCloudDNS(kubeClientset *kubernetes.Clientset, dnsUpdater DnsUpdater, done chan struct{}) cache.Store {
