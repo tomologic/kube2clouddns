@@ -34,6 +34,11 @@ func (client *DnsUpdater) serviceDeleted(obj interface{}) {
 func (client *DnsUpdater) serviceUpdated(oldObj, newObj interface{}) {
 	oldService := oldObj.(*v1.Service)
 	newService := newObj.(*v1.Service)
+
+	if newService.ObjectMeta.ResourceVersion == oldService.ObjectMeta.ResourceVersion {
+		return // Service unchanged, no need to update DNS
+	}
+
 	log.Println("Service updated from: " + oldService.ObjectMeta.Name + " to: " + newService.ObjectMeta.Name)
 	client.upsertService(newService)
 	if oldService.Name != newService.Name {
