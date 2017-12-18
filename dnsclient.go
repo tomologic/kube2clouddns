@@ -44,13 +44,15 @@ func init() {
 	}
 }
 
-type CloudDnsClient struct {
+// CloudDNSClient connects to Google Cloud DNS
+type CloudDNSClient struct {
 	domain  string
 	project string
 	*dns.Service
 }
 
-func NewDNSClient(serviceAccount []byte, domain string, project string) (*CloudDnsClient, error) {
+// NewDNSClient configures a Google Cloud DNS client
+func NewDNSClient(serviceAccount []byte, domain string, project string) (*CloudDNSClient, error) {
 	jwtConfig, err := google.JWTConfigFromJSON(
 		serviceAccount,
 		dns.NdevClouddnsReadwriteScope,
@@ -67,11 +69,11 @@ func NewDNSClient(serviceAccount []byte, domain string, project string) (*CloudD
 		return nil, err
 	}
 
-	return &CloudDnsClient{domain, project, service}, nil
+	return &CloudDNSClient{domain, project, service}, nil
 }
 
-func (c *CloudDnsClient) upsert(subDomain, value string, ttl int) error {
-	log.Printf("Try to upsert DNS record for %s with IP %s and TTL %s", subDomain, value, ttl)
+func (c *CloudDNSClient) upsert(subDomain, value string, ttl int) error {
+	log.Printf("Try to upsert DNS record for %s with IP %s and TTL %d", subDomain, value, ttl)
 
 	// Construct the new service DNS name
 	recordSetName := subDomain + "." + c.domain + "."
@@ -118,7 +120,7 @@ func (c *CloudDnsClient) upsert(subDomain, value string, ttl int) error {
 	return nil
 }
 
-func (c *CloudDnsClient) delete(subDomain string) error {
+func (c *CloudDNSClient) delete(subDomain string) error {
 
 	recordSetName := subDomain + "." + c.domain + "."
 
@@ -150,7 +152,7 @@ func (c *CloudDnsClient) delete(subDomain string) error {
 	return nil
 }
 
-func (c *CloudDnsClient) getZoneFromProjectAndDomain() (*dns.ManagedZone, error) {
+func (c *CloudDNSClient) getZoneFromProjectAndDomain() (*dns.ManagedZone, error) {
 	// Get list of zones from the project in order to find a zone with the selected domain
 	zones, err := c.ManagedZones.List(c.project).Do()
 	if err != nil {
@@ -169,7 +171,7 @@ func (c *CloudDnsClient) getZoneFromProjectAndDomain() (*dns.ManagedZone, error)
 	return zone, nil
 }
 
-func (c *CloudDnsClient) getRecordSetsFromName(zone *dns.ManagedZone, recordName string) ([]*dns.ResourceRecordSet, error) {
+func (c *CloudDNSClient) getRecordSetsFromName(zone *dns.ManagedZone, recordName string) ([]*dns.ResourceRecordSet, error) {
 	matchingRecords := []*dns.ResourceRecordSet{}
 
 	records, err := c.ResourceRecordSets.List(c.project, zone.Name).Do()

@@ -17,21 +17,22 @@ import (
 
 var log = LogLib.New(os.Stderr, "kube2clouddns: ", LogLib.LstdFlags|LogLib.Lshortfile)
 
-type DnsUpdater struct {
-	dnsClient *CloudDnsClient
+// DNSUpdater updates DNS data for kubernetes services
+type DNSUpdater struct {
+	dnsClient *CloudDNSClient
 }
 
-func (client *DnsUpdater) serviceCreated(obj interface{}) {
+func (client *DNSUpdater) serviceCreated(obj interface{}) {
 	service := obj.(*v1.Service)
 	log.Println("Service created: " + service.Name)
 	client.upsertService(service)
 }
-func (client *DnsUpdater) serviceDeleted(obj interface{}) {
+func (client *DNSUpdater) serviceDeleted(obj interface{}) {
 	service := obj.(*v1.Service)
 	log.Println("Service deleted: " + service.Name)
 	client.deleteService(service)
 }
-func (client *DnsUpdater) serviceUpdated(oldObj, newObj interface{}) {
+func (client *DNSUpdater) serviceUpdated(oldObj, newObj interface{}) {
 	oldService := oldObj.(*v1.Service)
 	newService := newObj.(*v1.Service)
 
@@ -45,8 +46,8 @@ func (client *DnsUpdater) serviceUpdated(oldObj, newObj interface{}) {
 		client.deleteService(oldService)
 	}
 }
-func (client *DnsUpdater) upsertService(service *v1.Service) {
-	if externalDnsEnabled(service) {
+func (client *DNSUpdater) upsertService(service *v1.Service) {
+	if externalDNSEnabled(service) {
 		hostname, ok := service.Annotations["external_dns_hostname"]
 		if !ok {
 			// If external_dns_hostname is not set, fall back on service name
@@ -58,8 +59,8 @@ func (client *DnsUpdater) upsertService(service *v1.Service) {
 		}
 	}
 }
-func (client *DnsUpdater) deleteService(service *v1.Service) {
-	if externalDnsEnabled(service) {
+func (client *DNSUpdater) deleteService(service *v1.Service) {
+	if externalDNSEnabled(service) {
 		hostname, ok := service.Annotations["external_dns_hostname"]
 		if !ok {
 			hostname = service.Name
@@ -71,21 +72,21 @@ func (client *DnsUpdater) deleteService(service *v1.Service) {
 	}
 }
 
-func externalDnsEnabled(service *v1.Service) bool {
+func externalDNSEnabled(service *v1.Service) bool {
 	// Is external_dns enabled in service labels?
-	externalDnsLabel, ok := service.Labels["external_dns"]
-	if ok && externalDnsLabel == "true" {
+	externalDNSLabel, ok := service.Labels["external_dns"]
+	if ok && externalDNSLabel == "true" {
 		return true
 	}
 	// Is external_dns enabled in service annotations?
-	externalDnsAnnotation, ok := service.Annotations["external_dns"]
-	if ok && externalDnsAnnotation == "true" {
+	externalDNSAnnotation, ok := service.Annotations["external_dns"]
+	if ok && externalDNSAnnotation == "true" {
 		return true
 	}
 	return false
 }
 
-func watchServicesAndUpdateCloudDNS(kubeClientset *kubernetes.Clientset, dnsUpdater DnsUpdater, done chan struct{}) cache.Store {
+func watchServicesAndUpdateCloudDNS(kubeClientset *kubernetes.Clientset, dnsUpdater DNSUpdater, done chan struct{}) cache.Store {
 
 	//Define what we want to look for (Services)
 	watchlist := cache.NewListWatchFromClient(kubeClientset.Core().RESTClient(), "services", v1.NamespaceDefault, fields.Everything())
@@ -125,7 +126,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	kClient := kubernetes.NewForConfigOrDie(restConfig)
+	kubeClient := kubernetes.NewForConfigOrDie(restConfig)
 
 	//Setup Updater client for Cloud DNS
 	serviceAccount, err := ioutil.ReadFile(*serviceaccount)
@@ -137,14 +138,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	dnsUpdater := DnsUpdater{dnsClient: dnsClient}
+	dnsUpdater := DNSUpdater{dnsClient: dnsClient}
 
 	// This channel is used to close the watch routine when the application exits
 	doneChan := make(chan struct{})
 
 	// Watch for events that add, modify, or delete services and process them asynchronously.
 	log.Println("Watching for service events.")
-	watchServicesAndUpdateCloudDNS(kClient, dnsUpdater, doneChan)
+	watchServicesAndUpdateCloudDNS(kubeClient, dnsUpdater, doneChan)
 
 	// Stay alive until shutdown signal received
 	signalChan := make(chan os.Signal, 1)
@@ -157,9 +158,4 @@ func main() {
 			os.Exit(0)
 		}
 	}
-}
-
-type DNSConfig struct {
-	projectId string
-	domain    string
 }
