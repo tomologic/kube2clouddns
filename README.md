@@ -1,3 +1,5 @@
+# Deprecated: Use https://github.com/kubernetes-incubator/external-dns instead.
+
 # kube2clouddns
 (short for Kubernetes Service To Google Cloud Platform Cloud DNS Sync Service)
 
